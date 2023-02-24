@@ -6,9 +6,11 @@ The IND is the immigration office in the Netherlands. Appointments can be made o
 
 This project allows users to subscribe to push notifications on their phones to receive close to real time alerts when new IND appointments become available.
 
-# Technical Solution 
+# Technical Solution Overview
 
-The python code is intended to be hosted on AWS Lambda and scheduled with AWS CloudWatch to run regularly. AlertDefinitions are defined in the script that specify the alert paramters (Appointment type, IND office location, and number of days ahead to include in the alerts). When it runs, appointments are retrieved from the IND API, and push notifications are sent via a 3rd party app called Pushover (pushover.net). A list of appointments is stored in AWS S3 to keep track of appointments for which alerts have already been sent (because we only want to alert about an appointment when it's new). Each time the process runs any appointments that are in the past are removed from the S3 file to avoid the file becoming larger over time.
+The python code is intended to be hosted on AWS Lambda and scheduled with AWS CloudWatch to run regularly. AlertDefinitions are defined in the script that specify the alert paramters (Appointment type, IND office location, and number of days ahead to include in the alerts). When it runs, appointments are retrieved from the IND API, and push notifications are sent via a 3rd party app called Pushover (pushover.net).
+
+A list of appointments is stored in AWS S3 to keep track of appointments for which alerts have already been sent (because we only want to alert about an appointment when it's new). Each time the process runs any appointments that are in the past are removed from the S3 file to avoid the file becoming larger over time.
 
 # Files
 
