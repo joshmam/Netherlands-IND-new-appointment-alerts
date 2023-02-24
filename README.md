@@ -33,24 +33,26 @@ Overview of steps:
 
 
 ### To generate requirements.txt file from python file (Note: a requirements.txt file is already provided in the repo)
-in conda terminal, run:
+in conda terminal, run:  
+```
 pip3 install pipreqs
 pip3 install pip-tools
-cd to project folder (folder that contains .py file)
-`pipreqs --savepath=requirements.in` (generates requirements file, .in file extension is needed for next step)
-`pip-compile` (gnerates requirements.txt file, includes dependencies of packages from previous step)
-The requirements.in file can now be deleted
+```
+cd to project folder (folder that contains .py file), then run the following:    
+`pipreqs --savepath=requirements.in` (generates requirements file, .in file extension is needed for next step)  
+`pip-compile` (gnerates requirements.txt file, includes dependencies of packages from previous step)  
+The requirements.in file can now be deleted  
 
 ### To install packages from requirements.txt into the environment (Note: python packages are already provided in the repo)
-Run one of these three options to download the packages:
-`pip install -r requirements.txt -t .` (this installs all packages into the current directory)
-`pip install -r requirements.txt -t ./python` (this installs them into a subdirectory called python - RECOMMENDED)
-`pip install -r requirements.txt` (this installs them into the current environment - they will have to be copied from the environment packages folder)
+Run one of these three options to download the packages:  
+`pip install -r requirements.txt -t .` (this installs all packages into the current directory)  
+`pip install -r requirements.txt -t ./python` (this installs them into a subdirectory called python - RECOMMENDED)  
+`pip install -r requirements.txt` (this installs them into the current environment - they will have to be copied from the environment packages folder)  
 
 ### To install individual packages in the project directory:
-cd to directory then run:
-`pip3 install <package_name> -t ./`
-(This approach is only recommended to use ad hoc for downloading specific packages)
+cd to directory then run:  
+`pip3 install <package_name> -t ./`  
+(This approach is only recommended to use ad hoc for downloading specific packages)  
 
 ### Use a Layer in AWS Lambda to store the python packages - create the correct .zip file for upload to the Lambda layer
 1. create a new empty directory called "python" in the project folder (this folder MUST be called "python")
