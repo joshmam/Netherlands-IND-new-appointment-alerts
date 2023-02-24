@@ -1,24 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
-
-
-# Currently working on:
-
-# Make readme good enough for initial commit
-# Download Dotenv package and add to Lambda Layer
-# Two functions in Lambda -> staging & prod, test of latest version in staging
-# Initial commit to Github
-
 
 # ### To do
 # 
 # - Setup Github Actions with AWS Lambda to remove need for manually deploying changes
 # - change appointment type and location to use full names in alerts to be more descriptive
 # - test subscribing from iOS device
-
-# In[40]:
 
 
 # Define an Alert Definition object - used to specify the alerts we want to receive
@@ -52,17 +40,11 @@ alert2 = AlertDefinition('DOC', 'AM', 3)
 alert_definition_list = [alert1, alert2]
 
 
-# In[41]:
-
-
 # Print out the alert definitions
 
 print(f'{len(alert_definition_list)} Alert Definition(s) have been defined\n---------------------------------------')
 for a in alert_definition_list:
     print(a)
-
-
-# In[42]:
 
 
 # IMPORT PACKAGES AND CONFIGURATION
@@ -82,11 +64,13 @@ import os
 api_token_pushover = os.getenv('PUSHOVER_API_TOKEN')
 user_key_pushover = os.getenv('PUSHOVER_USER_KEY')
 
-awsKey = os.getenv('AWS_KEY')
-awsSecret = os.getenv('AWS_SECRET')
+# Only needed when running locally - IAM role replaces this in AWS
+#awsKey = os.getenv('AWS_KEY')
+#awsSecret = os.getenv('AWS_SECRET')
 
 # Establish the AWS file system (for read/write to files in AWS S3)
-fs = s3fs.S3FileSystem(key=awsKey, secret=awsSecret)
+#fs = s3fs.S3FileSystem(key=awsKey, secret=awsSecret) # For running locally
+fs = s3fs.S3FileSystem() # For running in AWS
 
 
 # In[43]:
@@ -318,11 +302,11 @@ def lambda_handler(event, context):
 # In[ ]:
 
 
-### DELETE EVERYTHING BELOW HERE WHEN DEPLOYED IN LAMBDA
-lambda_handler(None, None)
+### Not needed in Prod
+#lambda_handler(None, None)
 
 
-# In[ ]:
+# In[53]:
 
 
 # Use to reset the data in S3 and check it - don't use in Prod
