@@ -71,5 +71,5 @@ v1 functionality:
 - Alerts are in the form of mobile push notifications and are sent via a 3rd party app called Pushover, available on Android and iOS
 
 Future release functionality
-- ability to subscribe to alerts for any IND office
-- ability to control the time window for which appointment notifications are received eg. next 7 days
+- ability for user to subscribe to alerts for any IND office
+- ability for user to control the time window for which appointment notifications are received eg. next 7 days
