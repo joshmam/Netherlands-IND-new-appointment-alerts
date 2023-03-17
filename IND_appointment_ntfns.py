@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 # Currently working on:
@@ -9,49 +9,17 @@
 # Deploy changes again and test -> if working deploy to Lambda prod
 # Fully test the experience of subscribing via the link from both iOS and Android device
 
-# Make location and type into proper names
+
+# In[ ]:
 
 
-# In[24]:
+# change log (record changes since last commit)
+
+# moved alert definitions to a json config file
+# added function to only store near future appts instead of all future appts
 
 
-# Define an Alert Definition object - used to specify the alerts we want to receive
-class AlertDefinition:
-    def __init__(self, appt_type, appt_location, days_ahead_to_alert, pushover_delivery_group_key):
-        self.appt_type = appt_type
-        self.appt_location = appt_location
-        self.days_ahead_to_alert = days_ahead_to_alert
-        self.pushover_delivery_group_key = pushover_delivery_group_key
-    
-    def __str__(self):
-        return f"Alert for {self.appt_type} appointments in {self.appt_location} within next {self.days_ahead_to_alert} days."
-    
-    def __repr__(self):
-        return f"AlertDefinition('{self.appt_type}', '{self.appt_location}', {self.days_ahead_to_alert})"
-
-
-########################
-### INPUT PARAMATERS ###
-########################
-    
-# Create instances of the AlertDefinition object and put in a list
-alert1 = AlertDefinition('BIO', 'AM', 3, 'giocwtmbeg22ohkabi62sjc7p2zimx')
-alert2 = AlertDefinition('DOC', 'AM', 3, 'gpa97esivhizkjhip9exvtogkt5gfj')
-
-alert_definition_list = [alert1, alert2]
-
-
-# In[3]:
-
-
-# Print out the alert definitions
-
-print(f'{len(alert_definition_list)} Alert Definition(s) have been defined\n---------------------------------------')
-for a in alert_definition_list:
-    print(a)
-
-
-# In[4]:
+# In[1]:
 
 
 # IMPORT PACKAGES AND CONFIGURATION
@@ -71,10 +39,6 @@ import os
 is_prod_str = os.getenv('IS_PROD')
 is_prod = is_prod_str.upper() == "TRUE"
 
-# Load credentials
-api_token_pushover = os.getenv('PUSHOVER_API_TOKEN')
-#user_key_pushover = os.getenv('PUSHOVER_USER_KEY')
-
 # Establish the AWS file system (for read/write to files in AWS S3)
 if is_prod:
     fs = s3fs.S3FileSystem()
@@ -86,7 +50,7 @@ else:
     fs = s3fs.S3FileSystem(key=awsKey, secret=awsSecret)
 
 
-# In[5]:
+# In[2]:
 
 
 # FUNCTIONS
@@ -104,7 +68,7 @@ def update_appt_lists(recent_output, master_list, new_appts):
             master_list.append(i) # master_list contains all historical appointments
             new_appts.append(i) # new_appts only contains new appointemnts that weren't in master list
             updated_count += 1
-    print(f'{updated_count} new appointments found')
+    print(f'new appts not in stored list: {updated_count}')
 
 # adds two new keys to each dict in list of dicts, given date string, adds datetime and unix timestamp
 def create_dt(lst):
@@ -132,11 +96,12 @@ def get_apps(app_type, app_loc):
     
     output = json.loads(clean_str)
     
+    print(f"Total appts returned by API: {len(output)}")
     return output
 
 # Loads .txt file from S3, returns a python list
 def load_s3_data(fname):
-    with fs.open('s3://ind-appt-alerts/' + fname + '.txt', 'rb') as f:
+    with fs.open('s3://ind-appt-alerts/' + fname, 'rb') as f:
         thisFile = f.read() # use eval to remove double quotation marks, otherwise won't load properly
         data = json.loads(thisFile)
     return data
@@ -144,27 +109,32 @@ def load_s3_data(fname):
 # Saves .txt file to S3, takes python list as data, returns success status as Boolean
 def update_s3_data(fname, data):
     try:
-        with fs.open('s3://ind-appt-alerts/' + fname + '.txt', 'w') as f:
+        with fs.open('s3://ind-appt-alerts/' + fname, 'w') as f:
             json.dump(data, f)
             success = True
     except:
         success = False
+    print(f"saving data to S3 successful: {success}")
     return success
 
 # Remove a specified key from every dict in a list
 remove_key = lambda lst, key_to_remove: [{k:v for k, v in d.items() if k != key_to_remove} for d in lst]
 
 # outputs a new appointments list that only contains appointments that are still in the future
-def remove_past_appts(lst, ts_key):
+def remove_past_appts(input_list, ts_key):
     current_ts = round(datetime.now().timestamp()) # get current timestamp
-    filtered_lst = [i for i in lst if i.get(ts_key) != None if i.get(ts_key) > current_ts]
-    return filtered_lst
+    return [appt for appt in input_list if appt.get(ts_key) is not None and appt.get(ts_key) >= current_ts]
+
+# outputs a new appointments list that only contains appointments that are still in the future
+def remove_far_future_appts(input_list, ts_key, days_ahead_to_keep):
+    ts_x_days_ahead = round((datetime.now() + timedelta(days=days_ahead_to_keep)).timestamp())
+    return [appt for appt in input_list if appt.get(ts_key) is not None and appt.get(ts_key) <= ts_x_days_ahead]
 
 
-# In[6]:
+# In[3]:
 
 
-# FUNCTION THAT DETERMINES APPOINTMENTS TO SEND ALERTS ABOUT
+# FUNCTION - given an alert definition, determines which appts to send alerts for
 
 # Gets any new appointments for the specified appointment type, location, and number of days into the future (days_ahead)
 # Returns a list of appointments we send alerts for
@@ -185,15 +155,19 @@ def get_appts_to_alert(alert_definition):
     # convert all date params in the list to datetimes
     create_dt(api_all_appts)
 
-    stored_appts_list = load_s3_data('master_appts_list')
+    stored_appts_list = load_s3_data('master_appts_list.txt')
     print(f'{str(len(stored_appts_list))} stored appointments')
 
     update_appt_lists(api_all_appts, stored_appts_list, new_appts_list)
 
     stored_appts_list = remove_key(stored_appts_list, 'dt') # Remove the datetime object from each dict (causing error in json.dump)
-    all_future_appts = remove_past_appts(stored_appts_list, 'unix_ts') # Remove any appointments in the past before saving (to keep file size small)
-    update_s3_data('master_appts_list', all_future_appts)
-    print(f'{str(len(all_future_appts))} appts in stored list after adding new appts and removing past appts')
+    
+    stored_appts_minus_past = remove_past_appts(stored_appts_list, 'unix_ts')
+
+    stored_appts_next_x_days_only = remove_far_future_appts(stored_appts_minus_past, 'unix_ts', 14)
+    
+    update_s3_data('master_appts_list.txt', stored_appts_next_x_days_only)
+    print(f'{str(len(stored_appts_next_x_days_only))} appts in stored list after adding near future appts and removing past appts')
     
     # filter new appointments to only next N days (only ones we want to send notifications for)
     appts_to_alert = list(filter(lambda row: dt_in_next_n_days(row['dt'], this_days_ahead), new_appts_list))
@@ -203,10 +177,10 @@ def get_appts_to_alert(alert_definition):
     return appts_to_alert
 
 
-# In[16]:
+# In[4]:
 
 
-# Creates the message title and body content for the pushover notification
+# FUNCTION - creates the message title and body content for the pushover notification given alert definition & list of appts
 def create_ntfn_content(appts_list, alert_definition):
     this_appt_type = alert_definition.appt_type
     this_appt_loc = alert_definition.appt_location
@@ -233,17 +207,17 @@ def create_ntfn_content(appts_list, alert_definition):
     return msg_title, msg_string
 
 
-# In[8]:
+# In[5]:
 
 
-# Sends a push notification by making request to Pushover API, returns the API response
+# FUNCTION - triggers push notification via Pushover given an app_key and user_key or group_key
 def send_ntfn(title, msg, api_token, user_key):
     url = "https://api.pushover.net/1/messages.json"
 
     data = {
         "token": api_token,
         "user": user_key,
-        "device": 'galaxys205g',
+        #"device": 'galaxys205g',
         "title": title,
         "message": msg
     }
@@ -252,10 +226,11 @@ def send_ntfn(title, msg, api_token, user_key):
     return response
 
 
-# In[9]:
+# In[6]:
 
 
-# Sends the alerts via Pushover, given the list of Alert Definitions, if there are any alerts to send
+# FUNCTION - runs the entire process given a list of alert definitions
+
 # returns a dict containing the number of ntfn attempts and ntfn successes
 def send_push_ntfns(alert_definitions):
     
@@ -268,13 +243,14 @@ def send_push_ntfns(alert_definitions):
         appts_to_alert = []
         appts_to_alert = get_appts_to_alert(this_def)
         
-        this_pushover_key = this_def.pushover_delivery_group_key
+        this_pushover_group_key = this_def.pushover_group_key
+        this_pushover_app_key = this_def.pushover_app_key
 
         if len(appts_to_alert) > 0:
 
             ntfn_content = create_ntfn_content(appts_to_alert, this_def)
 
-            this_resp = send_ntfn(ntfn_content[0], ntfn_content[1], api_token_pushover, this_pushover_key)
+            this_resp = send_ntfn(ntfn_content[0], ntfn_content[1], this_pushover_app_key, this_pushover_group_key)
             ntfn_attempts += 1
             
             if this_resp.status_code == 200:
@@ -285,13 +261,36 @@ def send_push_ntfns(alert_definitions):
     return {'alert_definitions_processed': alert_definitions_processed, 'ntfn_attempts': ntfn_attempts, 'ntfn_successes': ntfn_successes}
 
 
+# In[7]:
+
+
+# retrieve alert definitions from .json file in AWS S3
+alert_definitions = load_s3_data("alerts_config.json")
+
+
+# In[8]:
+
+
+class AlertDefinition:
+    def __init__(self, dict_arg):
+        self.__dict__.update(dict_arg)
+
+
+# In[9]:
+
+
+alert_definitions_list = []
+for d in alert_definitions:
+    alert_definitions_list.append( AlertDefinition(d) )
+
+
 # In[10]:
 
 
 # Lambda handler function required by AWS Lambda
 def lambda_handler(event, context):
     
-    response = send_push_ntfns(alert_definition_list)
+    response = send_push_ntfns(alert_definitions_list)
     
     if response['ntfn_attempts'] == response['ntfn_successes']:
         status = 200
@@ -304,7 +303,7 @@ def lambda_handler(event, context):
     }
 
 
-# In[30]:
+# In[13]:
 
 
 if not is_prod:
@@ -312,17 +311,11 @@ if not is_prod:
     lambda_handler(None, None)
 
 
-# In[29]:
+# In[12]:
 
 
 # Use to reset the data in S3 and check it - don't use in Prod
 #blank_data = []
-#update_s3_data('master_appts_list', blank_data)
-#load_s3_data('master_appts_list')
-
-
-# In[ ]:
-
-
-
+#update_s3_data('master_appts_list.txt', blank_data)
+#load_s3_data('master_appts_list.txt')
 
