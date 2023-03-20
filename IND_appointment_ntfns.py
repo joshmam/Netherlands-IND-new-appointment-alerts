@@ -13,15 +13,6 @@
 # In[ ]:
 
 
-# change log (record changes since last commit)
-
-# moved alert definitions to a json config file
-# added function to only store near future appts instead of all future appts
-
-
-# In[1]:
-
-
 # IMPORT PACKAGES AND CONFIGURATION
 
 import requests
@@ -50,7 +41,7 @@ else:
     fs = s3fs.S3FileSystem(key=awsKey, secret=awsSecret)
 
 
-# In[2]:
+# In[ ]:
 
 
 # FUNCTIONS
@@ -122,7 +113,7 @@ remove_key = lambda lst, key_to_remove: [{k:v for k, v in d.items() if k != key_
 
 # outputs a new appointments list that only contains appointments that are still in the future
 def remove_past_appts(input_list, ts_key):
-    current_ts = round(datetime.now().timestamp()) # get current timestamp
+    current_ts = round(datetime.now().timestamp()) - (48*60*60) # get current timestamp minus 48 hours
     return [appt for appt in input_list if appt.get(ts_key) is not None and appt.get(ts_key) >= current_ts]
 
 # outputs a new appointments list that only contains appointments that are still in the future
@@ -131,7 +122,7 @@ def remove_far_future_appts(input_list, ts_key, days_ahead_to_keep):
     return [appt for appt in input_list if appt.get(ts_key) is not None and appt.get(ts_key) <= ts_x_days_ahead]
 
 
-# In[3]:
+# In[ ]:
 
 
 # FUNCTION - given an alert definition, determines which appts to send alerts for
@@ -177,7 +168,7 @@ def get_appts_to_alert(alert_definition):
     return appts_to_alert
 
 
-# In[4]:
+# In[ ]:
 
 
 # FUNCTION - creates the message title and body content for the pushover notification given alert definition & list of appts
@@ -207,7 +198,7 @@ def create_ntfn_content(appts_list, alert_definition):
     return msg_title, msg_string
 
 
-# In[5]:
+# In[ ]:
 
 
 # FUNCTION - triggers push notification via Pushover given an app_key and user_key or group_key
@@ -226,7 +217,7 @@ def send_ntfn(title, msg, api_token, user_key):
     return response
 
 
-# In[6]:
+# In[ ]:
 
 
 # FUNCTION - runs the entire process given a list of alert definitions
@@ -261,14 +252,14 @@ def send_push_ntfns(alert_definitions):
     return {'alert_definitions_processed': alert_definitions_processed, 'ntfn_attempts': ntfn_attempts, 'ntfn_successes': ntfn_successes}
 
 
-# In[7]:
+# In[ ]:
 
 
 # retrieve alert definitions from .json file in AWS S3
 alert_definitions = load_s3_data("alerts_config.json")
 
 
-# In[8]:
+# In[ ]:
 
 
 class AlertDefinition:
@@ -276,7 +267,7 @@ class AlertDefinition:
         self.__dict__.update(dict_arg)
 
 
-# In[9]:
+# In[ ]:
 
 
 alert_definitions_list = []
@@ -284,7 +275,7 @@ for d in alert_definitions:
     alert_definitions_list.append( AlertDefinition(d) )
 
 
-# In[10]:
+# In[ ]:
 
 
 # Lambda handler function required by AWS Lambda
@@ -303,7 +294,7 @@ def lambda_handler(event, context):
     }
 
 
-# In[13]:
+# In[ ]:
 
 
 if not is_prod:
@@ -311,7 +302,7 @@ if not is_prod:
     lambda_handler(None, None)
 
 
-# In[12]:
+# In[ ]:
 
 
 # Use to reset the data in S3 and check it - don't use in Prod
